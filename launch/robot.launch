@@ -1,0 +1,28 @@
+<?xml version="1.0"?>
+<launch>
+    <!-- declare arg to be passed in -->
+    <arg name="team_side" default="home" />
+    <arg name="my_number" default="1" />
+    <arg name="ally_number" default="2" />
+
+    <!-- using which side of the field we are on, determine the appropriate -->
+    <!-- connections to the output of the vision system -->
+    <arg name="other_side" value="away" if="$(eval team_side == 'home')" />
+    <arg name="other_side" value="home" if="$(eval team_side == 'away')" />
+    
+    <!-- Hardware agnostic code -->
+    <node name="ai" pkg="whiteChocolate" type="ai_node.py" output="screen">
+        <remap from="me" to="/vision/$(arg team_side)$(arg my_number)" />
+        <remap from="ally" to="/vision/$(arg team_side)$(arg ally_number)" />
+        <remap from="opp1" to="/vision/$(arg other_side)1" />
+        <remap from="opp2" to="/vision/$(arg other_side)2" />
+        <remap from="ball" to="/vision/ball" />
+    </node>
+    <node name="controller" pkg="whiteChocolate" type="controller_node.py" output="screen">
+        <!-- The controller needs to know which vision msg to listen to -->
+        <remap from="me" to="/vision/$(arg team_side)$(arg my_number)" />
+        <!-- For simulation, remap the output -->
+        <remap from="vel_cmds" to="/$(arg team_side)$(arg my_number)/command" />
+    </node>
+
+</launch>
