@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
 <package>
-  <name>whiteChocolate</name>
+  <name>whitechocolate</name>
   <version>0.0.0</version>
-  <description>The whiteChocolate package</description>
+  <description>The whitechocolate package</description>
 
   <!-- One maintainer tag required, multiple allowed, one person per tag --> 
   <!-- Example:  -->

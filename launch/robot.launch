@@ -11,14 +11,14 @@
     <arg name="other_side" value="home" if="$(eval team_side == 'away')" />
     
     <!-- Hardware agnostic code -->
-    <node name="ai" pkg="whiteChocolate" type="ai_node.py" output="screen">
+    <node name="ai" pkg="whitechocolate" type="ai_node.py" output="screen">
         <remap from="me" to="/vision/$(arg team_side)$(arg my_number)" />
         <remap from="ally" to="/vision/$(arg team_side)$(arg ally_number)" />
         <remap from="opp1" to="/vision/$(arg other_side)1" />
         <remap from="opp2" to="/vision/$(arg other_side)2" />
         <remap from="ball" to="/vision/ball" />
     </node>
-    <node name="controller" pkg="whiteChocolate" type="controller_node.py" output="screen">
+    <node name="controller" pkg="whitechocolate" type="controller_node.py" output="screen">
         <!-- The controller needs to know which vision msg to listen to -->
         <remap from="me" to="/vision/$(arg team_side)$(arg my_number)" />
         <!-- For simulation, remap the output -->

@@ -27,6 +27,23 @@ _ball = Pose2D()
 
 # -------------------
 
+def handleRobotInversion(pos):
+    global _team_side
+    global _game_state
+    if (_team_side == 'away') ^ _game_state.second_half:
+        pos.x = -pos.x
+        pos.y = -pos.y
+        pos.theta -= 180.0
+    return pos
+
+def handleBallInversion(ball):
+    global _team_side
+    global _game_state
+    if (_team_side == 'away') ^ _game_state.second_half:
+        ball.x = -ball.x
+        ball.y = -ball.y
+    return ball
+
 def _handle_me(msg):
     global _me
     _me = msg
@@ -93,7 +110,11 @@ def main():
 
         # Based on the state of the game and the positions of the players,
         # run the AI and return commanded positions for this robot
-        cmds = ai.strategize(_me, _ally, _opp1, _opp2, _ball, _game_state)
+        players = [_me, _ally, _opp1, _opp2]
+        players = [handleRobotInversion(a) for a in players]
+        ball = _ball
+        # ball = handleBallInversion(_ball)
+        cmds = ai.strategize(players[0],players[1],players[2],players[3],ball,_game_state)
 
         # Get a message ready to send
         msg = Pose2D()           
@@ -115,8 +136,8 @@ def main():
             msg.x = cmds[0]
             msg.y = cmds[1]
             msg.theta = cmds[2]
-            if _ally_number == 2:
-                rospy.loginfo('%s %s %s', msg.x, msg.y, msg.theta)
+            # if _ally_number == 2:
+            #     rospy.loginfo('%s %s %s', msg.x, msg.y, msg.theta)
 
 
         # If we shouldn't play and the field doesn't need to be

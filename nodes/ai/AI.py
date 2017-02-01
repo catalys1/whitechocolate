@@ -1,4 +1,5 @@
 import numpy as np
+import rospy
 
 field_width = 3.53
 
@@ -14,19 +15,26 @@ class AI(object):
         
 
     def strategize(self, me, ally, opp1, opp2, ball, game_state):
-        
+        self.turn = True
         if self.ally1:
             # rush ball
-            cmds = self.rush_goal(me, ball)
+            if self.closeToBall(me, ball) and (self.closeToBall(opp1,ball) or self.closeToBall(opp2,ball) and self.turn):
+                theta = 90
+                cmds = [me.x,me.y,theta]
+                self.turn = False
+            else:
+                cmds = self.rush_goal(me, ball)
 
         else:
             # be a goalie (i.e., follow line on ball)
-            opp = self.calc_opponent_pos(ally, opp1, opp2, ball)
-            if opp:
-               cmds = self.rush_goal(me, ally)
-            else:
-                cmds = self.follow_ball_on_line(ball, -1.25)
-            
+            # opp = self.calc_opponent_pos(ally, opp1, opp2, ball)
+            # if opp:
+            #    cmds = self.rush_goal(me, ally)
+            # else:
+            cmds = self.follow_ball_on_line(ball, -1.25)
+        
+        if (self.team_side == 'away') ^ game_state.second_half:
+            cmds = (cmds[0], cmds[1], cmds[2])
         return cmds
 
 
@@ -38,6 +46,13 @@ class AI(object):
 
     def rush_goal(self, me, ball):
         # Use numpy to create vectors
+        theta = 0
+        if(me.theta != 90):
+            theta = me.theta
+        else:
+            theta = 0
+
+
         ballvec = np.array([[ball.x], [ball.y]])
         mevec = np.array([[me.x], [me.y]])
         goalvec = np.array([[field_width/2], [0]])
@@ -57,7 +72,7 @@ class AI(object):
         else:
             cmdvec = p
 
-        return (cmdvec.flatten()[0], cmdvec.flatten()[1], 0)
+        return (cmdvec.flatten()[0], cmdvec.flatten()[1], theta)
 
 
 
@@ -70,3 +85,8 @@ class AI(object):
                 return 2
         return 0
 
+
+    def closeToBall(self, player, ball):
+        d = 0.12 # distance from center of robot to center of ball
+        if abs((player.x-ball.x)**2 + (player.y-ball.y)**2) <= d**2:
+            return True
