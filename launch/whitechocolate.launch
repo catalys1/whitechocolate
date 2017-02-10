@@ -35,5 +35,12 @@
             </include>
         </group>
 
+        <!-- start up utilities -->
+        <group ns="utilities">
+            <include file="$(find whitechocolate)/launch/utility.launch">
+                <arg name="team_side" value="$(arg team_side)" />
+            </include>
+        </group>
+
     </group>
 </launch>

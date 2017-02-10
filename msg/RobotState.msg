@@ -1,0 +1,14 @@
+float64 vision_x
+float64 vision_y
+float64 vision_theta
+float64 xhat
+float64 yhat
+float64 thetahat
+float64 vx
+float64 vy
+float64 w
+float64 xhat_future
+float64 yhat_future
+float64 thetahat_future
+float64 predict_forward_seconds
+bool correction

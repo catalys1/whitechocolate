@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+<launch>
+    <!-- declare arg to be passed in -->
+    <arg name="team_side" default="home" />
+
+    <!-- using which side of the field we are on, determine the appropriate -->
+    <!-- connections to the output of the vision system -->
+    <arg name="other_side" value="away" if="$(eval team_side == 'home')" />
+    <arg name="other_side" value="home" if="$(eval team_side == 'away')" />
+    
+    <!-- Hardware agnostic code -->
+    <node name="coordinates" pkg="whitechocolate" type="coordinates_node.py" output="screen">
+        <!-- remap the inputs -->
+        <remap from="ally1" to="/vision/$(arg team_side)1" />
+        <remap from="ally2" to="/vision/$(arg team_side)2" />
+        <remap from="opp1" to="/vision/$(arg other_side)1" />
+        <remap from="opp2" to="/vision/$(arg other_side)2" />
+        <remap from="ball" to="/vision/ball" />
+        <!-- remap the outputs? -->
+    </node>
+    
+
+</launch>
