@@ -8,25 +8,20 @@ from sensor_msgs.msg import Image as img_msg
 from geometry_msgs.msg import Pose2D
 
 
-class VisionProcessor(object):
+class VisionProcessorRobot(object):
 
 	def __init__(self):
 		self.pub = None
 		self.position_r = [100,100,0]
-		self.position_b = [100,100]
 		self.cv_bridge = cvb.CvBridge()
 
 		self.click_x = 0
 		self.click_y = 0
 		self.show_val = False
 		self.toggle_view = True
-		self.toggle_obj = True
 
 		self.lowb_r = np.array([85,85,220])
 		self.upb_r  = np.array([106,125,250])
-
-		self.lowb_b = np.array([120,25,150])
-		self.upb_b  = np.array([150,60,240])
 
 		self.thresh = None
 
@@ -39,78 +34,38 @@ class VisionProcessor(object):
 			self.show_val = True
 		if event == cv.EVENT_RBUTTONDOWN:
 			self.toggle_view = not self.toggle_view
-		if event == cv.EVENT_MBUTTONDOWN:
-			self.toggle_obj = not self.toggle_obj
 
 	def processImage(self, msg):
 		image = self.cv_bridge.imgmsg_to_cv2(msg)
 		img = cv.cvtColor(image, cv.COLOR_BGR2HSV) 
 		x_r,y_r,theta_r = self.trackRobot(img.copy())
-		x_r,y_r,theta_r = [0,0,0]
-		x_b,y_b = self.trackBall(img)
 		pos = Pose2D(x=x_r, y=y_r, theta=theta_r)
 		self.pub.publish(pos)
 
 		if self.show_val:
-			print_obj = 'Robot' if self.toggle_obj else 'Ball'
-			print '{}: {}'.format(print_obj,img[self.click_y, self.click_x])
+			print 'Robot: {}'.format(img[self.click_y, self.click_x])
 			self.show_val = False
-			if self.toggle_obj:	
-				self.lowb_r = np.array(img[self.click_y, self.click_x])-12
-				self.upb_r = np.array(img[self.click_y, self.click_x])+12
-			else:
-			# Ball
-				self.lowb_b = np.array(img[self.click_y, self.click_x])-20
-				self.upb_b = np.array(img[self.click_y, self.click_x])+20
+			self.lowb_r = np.array(img[self.click_y, self.click_x])-20
+			self.upb_r = np.array(img[self.click_y, self.click_x])+20
+
 			
 		# Change the upper and lower threshold bounds based on the
 		# color that got clicked on
-		x,y = [0,0]
-		if self.toggle_obj:
-			# Robot
-			x,y = self.position_r[:2]
-		else:
-			# Ball
-			x,y = self.position_b
+
+		x,y = self.position_r[:2]
 
 		if self.toggle_view:
 			img[y-2:y+2,x-2:x+2] = np.tile([0,0,0], (4,4,1))
-			cv.imshow('frame',img)
+			cv.imshow('Robot',img)
 		else:
 			self.thresh[y-2:y+2,x-2:x+2] = np.tile(150, (4,4))
-			cv.imshow('frame',self.thresh)
-		cv.setMouseCallback('frame', self.click_point)
+			cv.imshow('Robot',self.thresh)
+		cv.setMouseCallback('Robot', self.click_point)
 		cv.waitKey(1)
-
-	def trackBall(self, img):
-		thresh = self.staticThresh(img, self.lowb_b, self.upb_b)
-		if not self.toggle_obj:
-			self.thresh = thresh
-		cnts = cv.findContours(thresh.copy(),cv.RETR_EXTERNAL,cv.CHAIN_APPROX_SIMPLE)[1]
-		try:
-			cs = []
-			for c in cnts:
-				M = cv.moments(c)
-				cX = int(M['m10']/M['m00'])
-				cY = int(M['m01']/M['m00'])
-				area = int(M['m00'])
-				cs.append([cX,cY,area])
-				
-			x = c0[0]
-			y = c0[1]
-			self.position_b = (x,y) 
-		except:
-			pass
-		return 0,0
 
 	def trackRobot(self, image):
 		# image = image[10:440, 120:725] #crop to only show the field
-		
 		thresh = self.staticThresh(image, self.lowb_r, self.upb_r)
-		kernel = np.ones((5,5),np.uint8)
-		thresh = cv.morphologyEx(thresh, cv.MORPH_OPEN, kernel)
-		if self.toggle_obj:
-			self.thresh = thresh
 		cnts = cv.findContours(thresh.copy(),cv.RETR_EXTERNAL,cv.CHAIN_APPROX_SIMPLE)[1]
 		#print 'Detected {} contours'.format(len(cnts))
 		
@@ -142,10 +97,11 @@ class VisionProcessor(object):
 
 	def staticThresh(self, img, lowb, upb):
 		thresh = cv.inRange(img, lowb, upb)
-		# kernel = np.ones((5,5),np.uint8)
-		# thresh = cv.morphologyEx(thresh, cv.MORPH_OPEN, kernel)
+		kernel = np.ones((5,5),np.uint8)
+		thresh = cv.morphologyEx(thresh, cv.MORPH_OPEN, kernel)
 		# thresh = cv.erode(thresh,kernal,iterations=1)
 		# thresh = cv.dilate(thresh,kernal,iterations=1
+		self.thresh = thresh
 		return thresh
 
 	def adaptiveThresh(self, image):
@@ -218,11 +174,11 @@ class VisionProcessorBall(object):
 
 		if self.toggle_view:
 			img[y-2:y+2,x-2:x+2] = np.tile([0,0,0], (4,4,1))
-			cv.imshow('frame',img)
+			cv.imshow('Ball',img)
 		else:
 			self.thresh[y-2:y+2,x-2:x+2] = np.tile(150, (4,4))
-			cv.imshow('frame',self.thresh)
-		cv.setMouseCallback('frame', self.click_point)
+			cv.imshow('Ball',self.thresh)
+		cv.setMouseCallback('Ball', self.click_point)
 		cv.waitKey(1)
 
 	def trackBall(self, img):
@@ -261,15 +217,29 @@ class VisionProcessorBall(object):
 		return thresh
 
 
+vis_proc_ball = VisionProcessorBall()
+vis_proc_robot = VisionProcessorRobot()
+
+def processVision(msg):
+	global vis_proc_ball
+	global vis_proc_robot
+	vis_proc_ball.processImage(msg)
+	vis_proc_robot.processImage(msg)
+
+
 def main():
-	vis_proc = VisionProcessorBall()
+	# vis_proc = VisionProcessorBall()
 	rospy.init_node('image_processor')
 
-	pub = rospy.Publisher('wc_position', Pose2D, queue_size=10)
-	vis_proc.pub = pub
+	pub_r = rospy.Publisher('wc_robot_position', Pose2D, queue_size=10)
+	pub_b = rospy.Publisher('wc_ball_position', Pose2D, queue_size=10)
+	global vis_proc_ball
+	global vis_proc_robot
+	vis_proc_ball.pub = pub_b
+	vis_proc_robot.pub = pub_r
 
 	# We will be subscribing to vision and game state
-	rospy.Subscriber('/usb_cam_away/image_raw', img_msg, vis_proc.processImage)
+	rospy.Subscriber('/usb_cam_away/image_raw', img_msg, processVision)
 
 	# Don't exit until the node is stopped externally
 	rospy.spin()
