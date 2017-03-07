@@ -16,11 +16,18 @@ class AIProcessor(object):
 		self.pos_b = [0,0]
 		self.pub = pub
 
-	def save_pos_r(self, msg):
-		self.pos_r = [msg.x,msg.y,msg.theta]
+	def save_pos(self, msg):
+		self.pos_r = [
+			msg.ally1.x,
+			msg.ally1.y,
+			msg.ally1.theta
+		]
+		self.pos_b = [
+			msg.ball.x,
+			msg.ball.y,
+			msg.ball.theta
+		]
 
-	def save_pos_b(self, msg):
-		self.pos_b = [msg.x,msg.y]
 
 	def strategize(self):
 
@@ -45,8 +52,7 @@ def main():
 	ai = AIProcessor(pub)
 
 	# We will be subscribing to vision and game state
-	rospy.Subscriber('/wc_robot_position', Pose2D, ai.save_pos_r)
-	rospy.Subscriber('/wc_ball_position', Pose2D, ai.save_pos_b)
+	rospy.Subscriber('/wc_estimation', Pose2D, ai.save_pos)
 
 	rate = rospy.Rate(100) # 100 Hz
 	while not rospy.is_shutdown():

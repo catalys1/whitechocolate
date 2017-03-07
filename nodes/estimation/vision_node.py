@@ -6,24 +6,17 @@ import numpy as np
 import rospy
 from sensor_msgs.msg import Image as img_msg
 from geometry_msgs.msg import Pose2D
+from whitechocolate.msg import VisionState
 
 
-class VisionProcessorRobot(object):
 
+class VisionProcessor(object):
+	
 	def __init__(self):
-		self.pub = None
-		self.position_r = [100,100,0]
-		self.cv_bridge = cvb.CvBridge()
-
 		self.click_x = 100
 		self.click_y = 100
 		self.show_val = False
-		self.toggle_view = True
 
-		self.lowb_r = np.array([85,85,220])
-		self.upb_r  = np.array([106,125,250])
-
-		self.thresh = None
 
 	def click_point(self,event,x,y,flags,params):
 		'''Save the point that got clicked on in the image
@@ -36,12 +29,27 @@ class VisionProcessorRobot(object):
 		if event == cv.EVENT_RBUTTONDOWN:
 			self.toggle_view = not self.toggle_view
 
-	def processImage(self, msg):
-		image = self.cv_bridge.imgmsg_to_cv2(msg)
-		img = cv.cvtColor(image, cv.COLOR_BGR2HSV) 
+
+class VisionProcessorRobot(VisionProcessor):
+
+	def __init__(self):
+		super(VisionProcessorRobot,self).__init__()
+		self.position_r = [100,100,0]
+
+		self.toggle_view = True
+
+		self.lowb_r = np.array([85,85,220])
+		self.upb_r  = np.array([106,125,250])
+
+		self.thresh = None
+
+
+	def processImage(self, img):
+		# image = self.cv_bridge.imgmsg_to_cv2(msg)
+		# img = cv.cvtColor(image, cv.COLOR_BGR2HSV) 
 		x_r,y_r,theta_r = self.trackRobot(img.copy())
 		pos = Pose2D(x=x_r, y=y_r, theta=theta_r)
-		self.pub.publish(pos)
+		# self.pub.publish(pos)
 
 		if self.show_val:
 			print 'Robot: {}'.format(img[self.click_y, self.click_x])
@@ -63,6 +71,7 @@ class VisionProcessorRobot(object):
 			cv.imshow('Robot',self.thresh)
 		cv.setMouseCallback('Robot', self.click_point)
 		cv.waitKey(1)
+		return pos
 
 	def trackRobot(self, image):
 		# image = image[10:440, 120:725] #crop to only show the field
@@ -128,16 +137,12 @@ class VisionProcessorRobot(object):
 
 
 
-class VisionProcessorBall(object):
+class VisionProcessorBall(VisionProcessor):
 
 	def __init__(self):
-		self.pub = None
+		super(VisionProcessorBall,self).__init__()
 		self.position_b = [100,100]
-		self.cv_bridge = cvb.CvBridge()
 
-		self.click_x = 0
-		self.click_y = 0
-		self.show_val = False
 		self.toggle_view = True
 
 		self.lowb_b = np.array([120,25,150])
@@ -145,23 +150,13 @@ class VisionProcessorBall(object):
 
 		self.thresh = None
 
-	def click_point(self,event,x,y,flags,params):
-		'''Save the point that got clicked on in the image
-		'''
-		if event == cv.EVENT_LBUTTONDOWN:
-			self.click_x = x
-			self.click_y = y
-			self.show_val = True
-			print self.click_x, self.click_y
-		if event == cv.EVENT_RBUTTONDOWN:
-			self.toggle_view = not self.toggle_view
 
-	def processImage(self, msg):
-		image = self.cv_bridge.imgmsg_to_cv2(msg)
-		img = cv.cvtColor(image, cv.COLOR_BGR2HSV) 
+	def processImage(self, img):
+		# image = self.cv_bridge.imgmsg_to_cv2(msg)
+		# img = cv.cvtColor(image, cv.COLOR_BGR2HSV) 
 		x_b,y_b = self.trackBall(img)
 		pos = Pose2D(x=x_b, y=y_b, theta=0)
-		self.pub.publish(pos)
+		# self.pub.publish(pos)
 
 		if self.show_val:
 			self.lowb_b = np.array(img[self.click_y, self.click_x])-20
@@ -171,7 +166,6 @@ class VisionProcessorBall(object):
 			
 		# Change the upper and lower threshold bounds based on the
 		# color that got clicked on
-		# Ball
 		x,y = self.position_b
 
 		if self.toggle_view:
@@ -182,6 +176,7 @@ class VisionProcessorBall(object):
 			cv.imshow('Ball',self.thresh)
 		cv.setMouseCallback('Ball', self.click_point)
 		cv.waitKey(1)
+		return pos
 
 	def trackBall(self, img):
 		# dt = 15
@@ -190,8 +185,8 @@ class VisionProcessorBall(object):
 		# area = cv.bilateralFilter(
 		# 	img[dy-dt:dy+dt,dx-dt:dx+dt,:], 5, 75, 75)
 		# img[dy-dt:dy+dt,dx-dt:dx+dt,:] = area
-		# thresh = self.staticThresh(img, self.lowb_b, self.upb_b)
-		thresh = self.otsu(img)
+		thresh = self.staticThresh(img, self.lowb_b, self.upb_b)
+		# thresh = self.otsu(img)
 		# thresh = cv.morphologyEx(thresh, cv.MORPH_CLOSE, kernel)
 		cnts = cv.findContours(thresh.copy(),cv.RETR_EXTERNAL,cv.CHAIN_APPROX_SIMPLE)[1]
 		try:
@@ -235,29 +230,44 @@ class VisionProcessorBall(object):
 		return thresh
 
 
-vis_proc_ball = VisionProcessorBall()
-vis_proc_robot = VisionProcessorRobot()
+class VisionManager(object):
 
-def processVision(msg):
-	global vis_proc_ball
-	global vis_proc_robot
-	vis_proc_ball.processImage(msg)
-	vis_proc_robot.processImage(msg)
+	def __init__(self):
+		self.robot1 = VisionProcessorRobot()
+		self.ball = VisionProcessorBall()
+		self.pub = None
+		self.cv_bridge = cvb.CvBridge()
+
+
+	def processVision(self, msg):
+
+		image = self.cv_bridge.imgmsg_to_cv2(msg)
+		img = cv.cvtColor(image, cv.COLOR_BGR2HSV)
+
+		ally1 = self.robot1.processImage(img)
+		ally2 = ally1
+		opp1 = opp2 = Pose2D()
+		ball = self.ball.processImage(img)
+
+		vis_msg = VisionState()
+		vis_msg.ally1 = ally1
+		vis_msg.ally2 = ally2
+		vis_msg.opp1 = opp1
+		vis_msg.opp1 = opp2
+		vis_msg.ball = ball
+
+		self.pub.publish(vis_msg)
 
 
 def main():
-	# vis_proc = VisionProcessorBall()
-	rospy.init_node('image_processor')
+	vis_proc = VisionManager()
+	rospy.init_node('vision_node')
 
-	pub_r = rospy.Publisher('wc_robot_position', Pose2D, queue_size=10)
-	pub_b = rospy.Publisher('wc_ball_position', Pose2D, queue_size=10)
-	global vis_proc_ball
-	global vis_proc_robot
-	vis_proc_ball.pub = pub_b
-	vis_proc_robot.pub = pub_r
+	pub = rospy.Publisher('wc_vision_state', VisionState, queue_size=10)
+	vis_proc.pub = pub
 
 	# We will be subscribing to vision and game state
-	rospy.Subscriber('/usb_cam_away/image_raw', img_msg, processVision)
+	rospy.Subscriber('/usb_cam_away/image_raw', img_msg, vis_proc.processVision)
 
 	# Don't exit until the node is stopped externally
 	rospy.spin()
