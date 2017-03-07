@@ -17,19 +17,20 @@ import numpy as np
 from math import cos, sin, pi
 
 # Kinematic constants
+#TODO: we may need to change these since these are based on our actual robot
 RHO = 0.02875 # Wheel radius [m]
-SX1 = -1.0 # Wheel spin vectors - body frame (unit vectors)
-SY1 = 0.0
-SX2 = 0.5
-SY2 = 0.866
-SX3 = 0.5
-SY3 = -0.866
-RX1 = 0.0 # Wheel position vectors - body frame (in meters)
-RY1 = -0.075
-RX2 = -0.06495
-RY2 = 0.0375
-RX3 = 0.06495
-RY3 = 0.0375
+SX1 = -0.866 # Wheel spin vectors - body frame (unit vectors)
+SY1 = 0.5
+SX2 = -0.866
+SY2 = -0.5
+SX3 = 1.0
+SY3 = 0
+RY1 = 0.03889 # Wheel position vectors - body frame (in meters)
+RX1 = 0.0777875
+RY2 = 0.03889
+RX2 = -0.0777875
+RX3 = 0.0
+RY3 = -0.03889
 
 theta_ = 0
 vel_cmd_ = Vector3()
@@ -75,9 +76,6 @@ def disengage():
 
 
 # ============== ROS NODE FUNCTIONS ====================
-def _handle_robot_state(msg):
-    global theta_
-    theta_ = msg.theta*pi/180.0;
 
 def _handle_velocity_command(msg):
     global vel_cmd_
@@ -129,9 +127,8 @@ def main():
     rospy.init_node('MotionControl', anonymous=False)
 
     # Sub/Pub
-    rospy.Subscriber('robot_state', State, _handle_robot_state)
-    rospy.Subscriber('vel_command', Twist, _handle_velocity_command)
-    motor_speed_pub_ = rospy.Publisher('motor_speeds', MotorSpeeds, queue_size=10)
+    rospy.Subscriber('wc_vel_cmds', Twist, _handle_velocity_command)
+    motor_speed_pub_ = rospy.Publisher('wc_motor_speeds', MotorSpeeds, queue_size=10)
 
 
     # spin() simply keeps python from exiting until this node is stopped
