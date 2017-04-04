@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import numpy as np
 import rospy
+import AI
 from geometry_msgs.msg import Pose2D
 
 
@@ -15,6 +16,7 @@ class AIProcessor(object):
 		self.pos_r = [0,0,0]
 		self.pos_b = [0,0]
 		self.pub = pub
+		self.AI = AI.AI()
 
 	def save_pos(self, msg):
 		self.pos_r = [
@@ -31,6 +33,8 @@ class AIProcessor(object):
 
 	def strategize(self):
 
+
+		self.AI.spin_360(self.pos_r[2])
 		c_msg = Pose2D()
 		c_msg.x, c_msg.y, c_msg.theta = [self.pos_r[0],self.pos_r[1],30]
 		self.pub.publish(c_msg)
@@ -55,8 +59,17 @@ def main():
 	rospy.Subscriber('/wc_estimation', Pose2D, ai.save_pos)
 
 	rate = rospy.Rate(100) # 100 Hz
+	increment = 0
+	testing = 1
 	while not rospy.is_shutdown():
-		ai.strategize()
+		if(increment == 100)
+			self.ai.strategize()
+			increment = 0
+		if(testing = 1)
+			self.ai.spin_90(self.ai.pos_r[2])
+			testing = 0
+		self.ai.update_sm(self.ai.pos_r[2])
+		increment += 1
 		rate.sleep()
 
 

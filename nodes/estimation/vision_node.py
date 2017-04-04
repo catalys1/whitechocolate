@@ -4,18 +4,34 @@ import cv2 as cv
 import cv_bridge as cvb
 import numpy as np
 import rospy
+import json
 from sensor_msgs.msg import Image as img_msg
 from geometry_msgs.msg import Pose2D
 from whitechocolate.msg import VisionState
 
 
+# TODO:
+#
+# - Create tracking for opponent(s)
+#
+# - Play and Calibration seperation
+#
+# - Our original plan was to have this in c++. Do we want to port it?
+
 
 class VisionProcessor(object):
 	
-	def __init__(self):
+	def __init__(self, **kwargs):
 		self.click_x = 100
 		self.click_y = 100
+		self.desired_x = 200
+		self.desired_y = 200
 		self.show_val = False
+
+		if 'thresh' in kwargs:
+			v = np.array(kwargs['thresh'])
+			self.lowb = v - 20
+			self.upb = v + 20
 
 
 	def click_point(self,event,x,y,flags,params):
@@ -28,18 +44,24 @@ class VisionProcessor(object):
 			print self.click_x, self.click_y
 		if event == cv.EVENT_RBUTTONDOWN:
 			self.toggle_view = not self.toggle_view
+		if event == cv.EVENT_MBUTTONDOWN:
+			self.desired_x = x
+			self.desired_y = y
+			print 'Desired position: x={}, y={}'.format(
+				self.desired_x, self.desired_y)
 
 
 class VisionProcessorRobot(VisionProcessor):
 
-	def __init__(self):
-		super(VisionProcessorRobot,self).__init__()
+	def __init__(self, **kwargs):
+		super(VisionProcessorRobot,self).__init__(**kwargs)
 		self.position_r = [100,100,0]
 
 		self.toggle_view = True
 
-		self.lowb_r = np.array([85,85,220])
-		self.upb_r  = np.array([106,125,250])
+		if 'thresh' not in kwargs:
+			self.lowb = np.array([85,85,220])
+			self.upb  = np.array([106,125,250])
 
 		self.thresh = None
 
@@ -54,13 +76,12 @@ class VisionProcessorRobot(VisionProcessor):
 		if self.show_val:
 			print 'Robot: {}'.format(img[self.click_y, self.click_x])
 			self.show_val = False
-			self.lowb_r = np.array(img[self.click_y, self.click_x])-20
-			self.upb_r = np.array(img[self.click_y, self.click_x])+20
+			# Change the upper and lower threshold bounds based on the
+			# color that got clicked on
+			self.lowb = np.array(img[self.click_y, self.click_x])-20
+			self.upb = np.array(img[self.click_y, self.click_x])+20
 
 			
-		# Change the upper and lower threshold bounds based on the
-		# color that got clicked on
-
 		x,y = self.position_r[:2]
 
 		if self.toggle_view:
@@ -75,7 +96,7 @@ class VisionProcessorRobot(VisionProcessor):
 
 	def trackRobot(self, image):
 		# image = image[10:440, 120:725] #crop to only show the field
-		thresh = self.staticThresh(image, self.lowb_r, self.upb_r)
+		thresh = self.staticThresh(image, self.lowb, self.upb)
 		cnts = cv.findContours(thresh.copy(),cv.RETR_EXTERNAL,cv.CHAIN_APPROX_SIMPLE)[1]
 		#print 'Detected {} contours'.format(len(cnts))
 		
@@ -83,20 +104,26 @@ class VisionProcessorRobot(VisionProcessor):
 			cs = []
 			for c in cnts:
 				M = cv.moments(c)
-				cX = int(M['m10']/M['m00'])
-				cY = int(M['m01']/M['m00'])
-				area = int(M['m00'])
+				cX = int(M['m10']/M['m00'])  # center x value
+				cY = int(M['m01']/M['m00'])  # center y value
+				area = int(M['m00'])         # area of the contour
 				cs.append([cX,cY,area])
-				
+			
+			# c0 is contour with greater area
 			c0 = cs[0] if cs[0][2] > cs[1][2] else cs[1]
 			c1 = cs[0] if cs[0][2] < cs[1][2] else cs[1]
 
+			# vector from smaller to larger contour centers
 			vx = c0[0] - c1[0]
 			vy = c0[1] - c1[1]
 
-			theta = np.arccos(vx/(np.sqrt(vx**2+vy**2)))
-			if vy > 0:
-				theta = (2*np.pi - theta) 
+			# get the angle of the vector
+			# theta = np.arccos(vx/(np.sqrt(vx**2+vy**2)))
+			theta = np.arctan(vy/vx)
+			if vx < 0:
+				theta = (np.pi - theta) 
+				if theta < 0:
+					theta += 2*np.pi
 			x = (c0[0] + c1[0]) / 2
 			y = (c0[1] + c1[1]) / 2
 			self.position_r = (x,y,theta*57.3) 
@@ -139,29 +166,38 @@ class VisionProcessorRobot(VisionProcessor):
 
 class VisionProcessorBall(VisionProcessor):
 
-	def __init__(self):
-		super(VisionProcessorBall,self).__init__()
+	def __init__(self, **kwargs):
+		super(VisionProcessorBall,self).__init__(**kwargs)
 		self.position_b = [100,100]
 
 		self.toggle_view = True
 
-		self.lowb_b = np.array([120,25,150])
-		self.upb_b  = np.array([150,60,240])
+		if 'thresh' not in kwargs:
+			self.lowb = np.array([120,25,150])
+			self.upb  = np.array([150,60,240])
 
 		self.thresh = None
 
+		self.background = None
+
 
 	def processImage(self, img):
-		# image = self.cv_bridge.imgmsg_to_cv2(msg)
-		# img = cv.cvtColor(image, cv.COLOR_BGR2HSV) 
+
+		if self.background is None:
+			self.background = img.copy()
+
 		x_b,y_b = self.trackBall(img)
 		pos = Pose2D(x=x_b, y=y_b, theta=0)
 		# self.pub.publish(pos)
 
 		if self.show_val:
-			self.lowb_b = np.array(img[self.click_y, self.click_x])-20
-			self.upb_b = np.array(img[self.click_y, self.click_x])+20
+			self.lowb = np.maximum(0, np.array(
+				img[self.click_y, self.click_x],np.int16)-[5,30,20])
+			self.upb = np.minimum(255, np.array(
+				img[self.click_y, self.click_x],np.int16)+[5,30,20])
 			print 'Ball: {}'.format(img[self.click_y, self.click_x])
+			# print self.lowb
+			# print self.upb
 			self.show_val = False
 			
 		# Change the upper and lower threshold bounds based on the
@@ -179,15 +215,8 @@ class VisionProcessorBall(VisionProcessor):
 		return pos
 
 	def trackBall(self, img):
-		# dt = 15
-		# dx = self.click_x
-		# dy = self.click_y
-		# area = cv.bilateralFilter(
-		# 	img[dy-dt:dy+dt,dx-dt:dx+dt,:], 5, 75, 75)
-		# img[dy-dt:dy+dt,dx-dt:dx+dt,:] = area
-		thresh = self.staticThresh(img, self.lowb_b, self.upb_b)
-		# thresh = self.otsu(img)
-		# thresh = cv.morphologyEx(thresh, cv.MORPH_CLOSE, kernel)
+
+		thresh = self.staticThresh(img, self.lowb, self.upb)
 		cnts = cv.findContours(thresh.copy(),cv.RETR_EXTERNAL,cv.CHAIN_APPROX_SIMPLE)[1]
 		try:
 			cs = []
@@ -198,7 +227,6 @@ class VisionProcessorBall(VisionProcessor):
 				area = int(M['m00'])
 				if area > 3:
 					cs.append([cX,cY,area])
-			
 			# if cnts == 1:	
 			x = cs[0][0]
 			y = cs[0][1]
@@ -209,12 +237,13 @@ class VisionProcessorBall(VisionProcessor):
 
 		return self.position_b
 
+
 	def staticThresh(self, img, lowb, upb):
-		thresh = cv.GaussianBlur(img, (5,5), 0, 0)
+		# thresh = cv.GaussianBlur(img, (7,7), 0, 0)
 		thresh = cv.medianBlur(img, 5)
-		thresh = cv.inRange(img, lowb, upb)
-		kernel = np.ones((3,3),np.uint8)
-		thresh = cv.morphologyEx(thresh, cv.MORPH_OPEN, kernel)
+		thresh = cv.inRange(thresh, lowb, upb)
+		# kernel = np.ones((3,3),np.uint8)
+		# thresh = cv.morphologyEx(thresh, cv.MORPH_OPEN, kernel)
 		# thresh = cv.morphologyEx(thresh, cv.MORPH_OPEN, kernel)
 		# thresh = cv.erode(thresh,kernal,iterations=1)
 		# thresh = cv.dilate(thresh,kernal,iterations=1
@@ -222,8 +251,15 @@ class VisionProcessorBall(VisionProcessor):
 		return thresh
 
 
+	def backSub(self, img, lowb, upb):
+		thresh = np.subtract(img, self.background)
+		thresh = np.where(thresh > 20, thresh, 0)
+		self.thresh = thresh
+		return thresh
+
+
 	def otsu(self, img):
-		img_dist = 180-np.abs(np.int32(img[...,0]) - (self.lowb_b[0]-self.upb_b[0])/2)
+		img_dist = 180-np.abs(np.int32(img[...,0]) - (self.lowb[0]-self.upb[0])/2)
 		_,thresh = cv.threshold(np.uint8(img_dist),150,255,cv.THRESH_BINARY)
 		thresh = np.uint8(thresh)
 		self.thresh = thresh
@@ -233,16 +269,23 @@ class VisionProcessorBall(VisionProcessor):
 class VisionManager(object):
 
 	def __init__(self):
-		self.robot1 = VisionProcessorRobot()
-		self.ball = VisionProcessorBall()
+		f = '/home/robot/catkin_ws/src/whitechocolate/nodes/estimation/calibration/cal.json'
+		self.params = json.load(open(f))
+
+		self.robot1 = VisionProcessorRobot(thresh=self.params['ally1'])
+		self.ball = VisionProcessorBall(thresh=self.params['ball'])
 		self.pub = None
+		self.des_pub = None
 		self.cv_bridge = cvb.CvBridge()
+
 
 
 	def processVision(self, msg):
 
+		box = self.params['box']
 		image = self.cv_bridge.imgmsg_to_cv2(msg)
 		img = cv.cvtColor(image, cv.COLOR_BGR2HSV)
+		img = img[box[0][1]:box[1][1]+1, box[0][0]:box[1][0]+1]
 
 		ally1 = self.robot1.processImage(img)
 		ally2 = ally1
@@ -256,7 +299,14 @@ class VisionManager(object):
 		vis_msg.opp1 = opp2
 		vis_msg.ball = ball
 
+		des_msg = Pose2D(
+			x=self.robot1.desired_x,
+			y=self.robot1.desired_y,
+			theta=0
+		)
+
 		self.pub.publish(vis_msg)
+		self.des_pub.publish(des_msg)
 
 
 def main():
@@ -264,7 +314,9 @@ def main():
 	rospy.init_node('vision_node')
 
 	pub = rospy.Publisher('wc_vision_state', VisionState, queue_size=10)
+	des_pub = rospy.Publisher('wc_click_desired_position',Pose2D,queue_size=10)
 	vis_proc.pub = pub
+	vis_proc.des_pub = des_pub
 
 	# We will be subscribing to vision and game state
 	rospy.Subscriber('/usb_cam_away/image_raw', img_msg, vis_proc.processVision)

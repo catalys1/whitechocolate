@@ -105,7 +105,7 @@ def sendVelocityCommands():
     speedM2 = wheel_speeds_[1] # rot/s
     speedM3 = wheel_speeds_[2] # rot/s
 
-    print(wheel_speeds_)
+    print('Wheel speeds: {}',format(wheel_speeds_))
 
     # totalTime = 3   #seconds
     # sampleRate = 50 #samples per second
@@ -113,7 +113,7 @@ def sendVelocityCommands():
     # pulsePerRotation = 116.2 #New motors
 
     # Set the PIDQ values for all motors
-    setPID(0, 1, 1, 40000)
+    setPID(0, 1, 1, 83000)
 
     # Set tick period (triggers PID control) and velocity filter corner frequency
     setT(20, 50)

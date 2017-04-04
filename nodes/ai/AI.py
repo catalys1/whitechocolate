@@ -4,6 +4,7 @@ import rospy
 field_width = 3.53
 
 class AI(object):
+
     def __init__(self, team_side, ally_number):
         super(AI, self).__init__()
 
@@ -12,6 +13,8 @@ class AI(object):
 
         # Am I ally1?
         self.ally1 = (ally_number == 1)
+
+        self.skill_sm = None
         
 
     def strategize(self, me, ally, opp1, opp2, ball, game_state):
@@ -42,6 +45,29 @@ class AI(object):
         y_c = ball.y
         theta_c = 0
         return (x_c, y_c, theta_c)
+
+
+
+    #TODO the following 
+    def spin_90(self, theta):
+        self.skill_sm = Rotate90StateMachine()
+        self.skill_sm.start(theta)
+        
+
+    def forward_12inches():
+        return (me.x, me.y, me.theta)
+
+
+    def go_to_center(self, x_c, y_c):
+        return 
+
+    def box_formation():
+        return
+
+
+    def update_sm(self, args):
+        self.skill_sm.update(args)
+
 
 
     def rush_goal(self, me, ball):
