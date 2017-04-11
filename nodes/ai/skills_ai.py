@@ -3,6 +3,8 @@ import numpy as np
 import rospy
 import AI
 from geometry_msgs.msg import Pose2D
+from soccerref.msg import GameState
+from whitechocolate.msg import VisionState
 
 
 position = None
@@ -13,31 +15,31 @@ flag = True
 class AIProcessor(object):
 
 	def __init__(self,pub):
-		self.pos_r = [0,0,0]
-		self.pos_b = [0,0]
+		self.pos_r = np.zeros(3, np.uint16)
+		self.pos_b = np.zeros(2, np.uint16)
 		self.pub = pub
-		self.AI = AI.AI()
+		self.AI = AI.AI('home',1)
 
 	def save_pos(self, msg):
-		self.pos_r = [
-			msg.ally1.x,
-			msg.ally1.y,
-			msg.ally1.theta
-		]
-		self.pos_b = [
-			msg.ball.x,
-			msg.ball.y,
-			msg.ball.theta
-		]
+		pass
+		# self.pos_r[:] = self.pose2list(msg.ally1)
+		# self.pos_b[:] = self.pose2list(msg.ball)
 
 
 	def strategize(self):
-
 
 		self.AI.spin_360(self.pos_r[2])
 		c_msg = Pose2D()
 		c_msg.x, c_msg.y, c_msg.theta = [self.pos_r[0],self.pos_r[1],30]
 		self.pub.publish(c_msg)
+
+
+	def pose2list(self, pose_msg):
+		return [pose_msg.x,pose_msg.y,pose_msg.theta]
+
+
+	def do_nothing(self, msg):
+		pass
 
 	# def spin():
 	# 	global position
@@ -56,20 +58,21 @@ def main():
 	ai = AIProcessor(pub)
 
 	# We will be subscribing to vision and game state
-	rospy.Subscriber('/wc_estimation', Pose2D, ai.save_pos)
+	rospy.Subscriber('wc_estimation', VisionState, ai.save_pos)
+	rospy.Subscriber('game_state', GameState, ai.do_nothing)
 
 	rate = rospy.Rate(100) # 100 Hz
 	increment = 0
 	testing = 1
 	while not rospy.is_shutdown():
-		if(increment == 100)
-			self.ai.strategize()
-			increment = 0
-		if(testing = 1)
-			self.ai.spin_90(self.ai.pos_r[2])
-			testing = 0
-		self.ai.update_sm(self.ai.pos_r[2])
-		increment += 1
+		# if(increment == 100)
+		# 	self.ai.strategize()
+		# 	increment = 0
+		# if(testing = 1)
+		# 	self.ai.spin_90(self.ai.pos_r[2])
+		# 	testing = 0
+		# self.ai.update_sm(self.ai.pos_r[2])
+		# increment += 1
 		rate.sleep()
 
 

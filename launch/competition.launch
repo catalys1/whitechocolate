@@ -7,10 +7,22 @@
 
 		<node name="vision" pkg="whitechocolate" type="vision_node.py" output="screen">
 	    </node>
+
 	    <node name="estimator" pkg="whitechocolate" type="estimation_node.py" output="screen">
 	    </node>
+
 	    <node name="controller" pkg="whitechocolate" type="escontroller_node.py" output="screen">
 	    </node>
+
+	    <node name="ai" pkg="whitechocolate" type="skills_ai.py" output="screen">
+	    </node>
+
+	    <include file="$(find soccerref)/launch/referee.launch">
+	    	<remap from="game_state" to="/game_state" />
+            <arg name="half_duration_secs" value="120" />
+            <arg name="use_timer" value="false" />
+            <arg name="simulation_mode" value="false" />
+        </include>
 
 	</group>
 

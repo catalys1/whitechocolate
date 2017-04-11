@@ -53,7 +53,7 @@ class EstimateManager(object):
 
 	measure_period = 1.0/30	 # camera frame rate
 	ctrl_period = 1.0/100	 # rate of sending out estimates
-	alpha = 0.1
+	alpha = 0.3
 
 	field_w = 126*0.0254     # field width in meters
 	field_h = 88*0.0254      # field height in meters
@@ -114,10 +114,16 @@ class EstimateManager(object):
 		# low pass filter
 		Ts = time.time() - self.timestamp
 		pos_ally1 = self.ally1_est.update(Ts, self.world_ally1)
-		pos_ally2 = self.ally1_est.update(Ts, self.world_ally2)
-		pos_opp1  = self.ally1_est.update(Ts, self.world_opp1)
-		pos_opp2  = self.ally1_est.update(Ts, self.world_opp2)
-		pos_ball  = self.ally1_est.update(Ts, self.world_ball)
+		# import ipdb; ipdb.set_trace()
+		pos_ally2 = self.ally2_est.update(Ts, self.world_ally2)
+		pos_opp1  = self.opp1_est.update(Ts, self.world_opp1)
+		pos_opp2  = self.opp2_est.update(Ts, self.world_opp2)
+		pos_ball  = self.ball_est.update(Ts, self.world_ball)
+
+		# pos_ally2 = self.world_ally2
+		# pos_opp1 = self.world_opp1
+		# pos_opp2 = self.world_opp2
+		# pos_ball = self.world_ball
 
 		# Here we will want to grab the velocities and add them to the message
 
@@ -136,7 +142,7 @@ class EstimateManager(object):
 
 
 	def pose2array(self, pose_msg):
-		return np.array([pose_msg.x,pose_msg.y,pose_msg.theta])
+		return np.array([pose_msg.x, pose_msg.y, pose_msg.theta])
 
 
 	def array2pose(self, arr):
@@ -160,15 +166,15 @@ class EstimateManager(object):
 
 def main():
 	rospy.init_node('estimation_node')
-	pub = rospy.Publisher('/wc_estimation', VisionState, queue_size=10)
-	des_pub = rospy.Publisher('/wc_des_estimation', Pose2D, queue_size=10)
+	pub = rospy.Publisher('wc_estimation', VisionState, queue_size=10)
+	des_pub = rospy.Publisher('wc_des_estimation', Pose2D, queue_size=10)
 	est = EstimateManager(pub)
 	est.des_pub = des_pub
 
 	# We will be subscribing to vision and game state
 	# Need to add game state subscription
-	rospy.Subscriber('/wc_vision_state', VisionState, est.savePositions)
-	rospy.Subscriber('/wc_click_desired_position',Pose2D,est.desired_estimate)
+	rospy.Subscriber('wc_vision_state', VisionState, est.savePositions)
+	rospy.Subscriber('wc_click_desired_position',Pose2D,est.desired_estimate)
 
 	rate = rospy.Rate(est.ctrl_period)
 	while not rospy.is_shutdown():

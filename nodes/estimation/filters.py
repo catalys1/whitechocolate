@@ -27,7 +27,7 @@ class LowPassFilter(object):
             tau             - dirty-derivative bandwidth. Small numbers
                               allow derivatives to be more loose; i.e.,
                               0.001 creates lots of noise in velocity.
-            update_type     - 
+            update_type     - Simple, delay or bounce
             N               - How many states are you tracking?
             angle_state_pos - If your state is (x, y, theta) then this
                               arg is 3. This tells the LPF to deal
@@ -55,9 +55,9 @@ class LowPassFilter(object):
         self.angle_state_position = angle_state_position
 
         # Persistent variables (init better?)
-        self.position = np.matrix(np.zeros(N))
+        self.position = np.array(np.zeros(N))
         self.position_d1 = self.position
-        self.velocity = np.matrix(np.zeros(N))
+        self.velocity = np.zeros(N)
         self.measurement_d1 = self.position
 
     def get_velocities(self):
@@ -72,7 +72,11 @@ class LowPassFilter(object):
         """
 
         if self.update_type == self.UPDATE_SIMPLE:
+            # print 'before: {}'.format(self.position)
+            # print measurement
             self._update_simple(Ts, measurement)
+            # print 'after: {}'.format(self.position)
+            # import ipdb; ipdb.set_trace()
 
         elif self.update_type == self.UPDATE_DELAY:
             self._update_delayed(Ts, measurement)
@@ -120,9 +124,11 @@ class LowPassFilter(object):
         measurement_received = measurement is not None
 
         if measurement_received: # correct
-            
+            # import ipdb; ipdb.set_trace()
+            # print '[update_simple] measurement: {}'.format(measurement)
+                        
             # Create a row vector (np.matrix) for easy computation
-            measurement = np.matrix(measurement)
+            measurement = np.array(measurement)
 
             # If angle is involved, deal with its periodicity
             measurement = self._deal_with_circular_data_pre(measurement)
@@ -155,7 +161,7 @@ class LowPassFilter(object):
         if measurement_received: # correction
             
             # Create a row vector (np.matrix) for easy computation
-            measurement = np.matrix(measurement)
+            measurement = np.array(measurement)
 
             # If angle is involved, deal with its periodicity
             measurement = self._deal_with_circular_data_pre(measurement)
@@ -173,11 +179,11 @@ class LowPassFilter(object):
             self.position = self.position_d1
 
             # And propagate up to current location
-            self.position = np.matrix(self.predict(Ts))
+            self.position = np.array(self.predict(Ts))
 
         else: # prediction
             # propagate prediction ahead one control sample time
-            self.position = np.matrix(self.predict(self.T_ctrl))
+            self.position = np.array(self.predict(self.T_ctrl))
 
 
     def _updated_delayed_bounce(Ts, ball_x=None, ball_y=None):
@@ -215,10 +221,10 @@ class LowPassFilter(object):
 
     def _unpack_states(self, mat):
         """Unpack States
-        Expects a row vector (np.matrix) of length self.N
+        Expects a row vector (np.array) of length self.N
         and returns a list of elements
         """
-        xhat = mat.getA()[0]
+        xhat = mat.tolist()
         return xhat
 
     def _deal_with_circular_data_pre(self, measurement):
@@ -237,7 +243,7 @@ class LowPassFilter(object):
         Must be called in conjunction with _deal_with_circular_data_post()
         See also, `self.angle_state_position`
         args:
-            measurement     - expected as an np.matrix (row vector)
+            measurement     - expected as an np.array (row vector)
         """
         if self.angle_state_position is not None:
             i = self.angle_state_position - 1
@@ -264,7 +270,7 @@ class LowPassFilter(object):
     def _deal_with_circular_data_post(self, lpf_result):
         """Deal with Circular Data Post-LPF
         args:
-            lpf_result      - output of LPF, expected as np.matrix (row vector)
+            lpf_result      - output of LPF, expected as np.array (row vector)
         """
         if self.angle_state_position is not None:
             i = self.angle_state_position - 1

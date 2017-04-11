@@ -65,6 +65,9 @@ class VisionProcessorRobot(VisionProcessor):
 
 		self.thresh = None
 
+		self.c0 = [0,0]
+		self.c1 = [0,0]
+
 
 	def processImage(self, img):
 		# image = self.cv_bridge.imgmsg_to_cv2(msg)
@@ -85,7 +88,11 @@ class VisionProcessorRobot(VisionProcessor):
 		x,y = self.position_r[:2]
 
 		if self.toggle_view:
+			c0 = self.c0
+			c1 = self.c1
 			img[y-2:y+2,x-2:x+2] = np.tile([0,0,0], (4,4,1))
+			img[c0[1]-2:c0[1]+2,c0[0]-2:c0[0]+2] = np.tile([0,0,0], (4,4,1))
+			img[c1[1]-2:c1[1]+2,c1[0]-2:c1[0]+2] = np.tile([0,0,0], (4,4,1))
 			cv.imshow('Robot',img)
 		else:
 			self.thresh[y-2:y+2,x-2:x+2] = np.tile(150, (4,4))
@@ -112,10 +119,12 @@ class VisionProcessorRobot(VisionProcessor):
 			# c0 is contour with greater area
 			c0 = cs[0] if cs[0][2] > cs[1][2] else cs[1]
 			c1 = cs[0] if cs[0][2] < cs[1][2] else cs[1]
+			self.c0 = c0
+			self.c1 = c1
 
 			# vector from smaller to larger contour centers
-			vx = c0[0] - c1[0]
-			vy = c0[1] - c1[1]
+			vx = c1[0] - c0[0]
+			vy = c1[1] - c0[1]
 
 			# get the angle of the vector
 			# theta = np.arccos(vx/(np.sqrt(vx**2+vy**2)))

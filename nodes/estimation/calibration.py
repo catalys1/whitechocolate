@@ -65,7 +65,8 @@ class Calibrator(object):
 
 	def process(self, msg):
 
-		image = self.cv_bridge.imgmsg_to_cv2(msg)
+		image = self.cv_bridge.imgmsg_to_cv2(msg)[...,::-1]
+		image = cv.cvtColor(image, cv.COLOR_RGB2HSV)
 		if self.crop:
 			image = image[self.box[0][1]:self.box[1][1]+1, self.box[0][0]:self.box[1][0]+1]
 
@@ -73,7 +74,7 @@ class Calibrator(object):
 			self._setBounds(image)
 
 		if self.center is not None:
-			cv.circle(image, tuple(self.center), 10, (0,0,255), 1)
+			cv.circle(image, tuple(self.center), 10, (255,0,0), 1)
 		# img = np.uint8(image[:,:]<self.thresh)*255
 		cv.imshow('Cal', image)
 		cv.setMouseCallback('Cal', self.mouse_event)
