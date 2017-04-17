@@ -3,6 +3,7 @@
 import rospy
 from geometry_msgs.msg import Twist, Pose2D
 from whitechocolate.msg import VisionState
+from whitechocolate.msg import MotorCommand
 import numpy as np
 
 import Controller
@@ -49,7 +50,7 @@ class ControlHandler(object):
 
 def main():
     rospy.init_node('controller', anonymous=False)
-    pub = rospy.Publisher('vel_cmds', Twist, queue_size=10)
+    pub = rospy.Publisher('vel_cmds', MotorCommand, queue_size=10)
     Controller.init()
     control = ControlHandler()
 
@@ -73,10 +74,11 @@ def main():
             control.ally1.theta/57.3)
 
         # Publish Velocity Commands
-        msg = Twist()
-        msg.linear.x = vx
-        msg.linear.y = vy
-        msg.angular.z = w
+        msg = MotorCommand()
+        msg.command.linear.x = vx
+        msg.command.linear.y = vy
+        msg.command.angular.z = w
+        msg.theta = control.ally1.theta/57.3
         pub.publish(msg)
        
         # Wait however long it takes to make this tick at proper control period
