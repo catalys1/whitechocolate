@@ -1,8 +1,14 @@
 <?xml version="1.0"?>
 <launch>
 
+	<!-- Team side is passed in via the commandline -->
+	<arg name="team_side" default="home" />
+
 	<group ns="whitechocolate">
 
+		<!-- team_side parameter -->
+		<param name="team_side" type="string" value="$(arg team_side)" />
+		
 		<!-- launch-prefix="xterm -e"  for a debug window -->
 
 		<node name="vision" pkg="whitechocolate" type="vision_node.py" output="screen">
@@ -10,6 +16,8 @@
 	    <node name="estimator" pkg="whitechocolate" type="estimation_node.py" output="screen">
 	    </node>
 	    <node name="controller" pkg="whitechocolate" type="escontroller_node.py" output="screen">
+	    </node>
+	    <node name="ai" pkg="whitechocolate" type="skills_ai.py" output="screen">
 	    </node>
 
 	</group>

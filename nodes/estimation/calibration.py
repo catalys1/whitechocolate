@@ -93,12 +93,15 @@ class Calibrator(object):
 			self._switchState('center')
 		elif k == 114:  # "R" key pressed
 		 	self._switchState('robot')
-		elif k == 98:  # "B" key pressed
+		elif k == 98:   # "B" key pressed
 			self._switchState('ball')
 		elif k == 113:  # "Q" key pressed
 			# start over
 			self._switchState('bounds')
 			self._reset()
+		elif k == 115:  # "S" key pressed
+			# Save
+			json.dump(self.params, open(self.cal_file,'w'))
 
 		
 		if self.state == self.states['bounds']:
@@ -109,7 +112,6 @@ class Calibrator(object):
 				y = self.params['box'][1][1] - self.params['box'][0][1]
 				self.center = [x/2, y/2]
 				self.params['center'] = self.center
-				json.dump(self.params, open(self.cal_file,'w'))
 				self._switchState('robot')
 			elif k == 82:
 				self.thresh += 10

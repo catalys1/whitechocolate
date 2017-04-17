@@ -15,64 +15,84 @@ flag = True
 class AIProcessor(object):
 
 	def __init__(self,pub):
-		self.pos_r = np.zeros(3, np.uint16)
-		self.pos_b = np.zeros(2, np.uint16)
+		self.ally1 = np.zeros(3, np.float64)
+		self.ally2 = np.zeros(3, np.float64)
+		self.pos1  = np.zeros(3, np.float64)
+		self.pos2  = np.zeros(3, np.float64)
+		self.ball  = np.zeros(3, np.float64)
+
 		self.pub = pub
 		self.AI = AI.AI('home',1)
 
+		self.game_state = GameState()
+
+		self.click_desired = np.zeros(3, np.float64)
+
+
+	def play_soccer(self):
+		'''Game loop
+		'''
+		command = np.array([0.0, 0.0, 0.0])
+		# reset field has priority
+		if self.game_state.reset_field:
+			# either set up for a penelty of go to start position
+			if self.game_state.home_penalty:
+				pass
+			elif self.game_state.away_penalty:
+				pass
+			else:
+				command = self.AI.reset_offense()
+		elif self.game_state.play:
+			command = self.click_desired
+		else:
+			command = self.AI.stop(self.ally1)
+
+		self.pub.publish(self.array2pose(command))
+
+
+	def pose2array(self, pose_msg):
+		return np.array([pose_msg.x,pose_msg.y,pose_msg.theta])
+
+
+	def array2pose(self, arr):
+		return Pose2D(*arr)
+
+
 	def save_pos(self, msg):
-		pass
-		# self.pos_r[:] = self.pose2list(msg.ally1)
-		# self.pos_b[:] = self.pose2list(msg.ball)
+		self.ally1[:] = self.pose2array(msg.ally1)
+		self.ball[:] = self.pose2array(msg.ball)
 
 
-	def strategize(self):
-
-		self.AI.spin_360(self.pos_r[2])
-		c_msg = Pose2D()
-		c_msg.x, c_msg.y, c_msg.theta = [self.pos_r[0],self.pos_r[1],30]
-		self.pub.publish(c_msg)
+	def update_game_state(self, msg):
+		'''Save a snapshot of the game state. Expects a GameState message.
+		'''
+		self.game_state = msg
 
 
-	def pose2list(self, pose_msg):
-		return [pose_msg.x,pose_msg.y,pose_msg.theta]
+	def save_desired(self, msg):
+		'''
+		'''
+		self.click_desired = self.pose2array(msg)
 
 
-	def do_nothing(self, msg):
-		pass
 
-	# def spin():
-	# 	global position
-	# 	global pos_commanded
-	# 	threshold = np.pi / 18.0
-	# 	if abs(pos_commanded[2]-position[2]) < threshold:
-	# 		pos_commanded[2] = (pos_commanded[2] + 2*threshold)
-	# 	if pos_commanded[2] > 2*np.pi:
-	# 		pos_commanded[2] -= 2*np.pi
-	# 	return pos_commanded
 
 
 def main():
 	rospy.init_node('whitechocolate_skills')
-	pub = rospy.Publisher('wc_desired_position', Pose2D, queue_size=10)
+	pub = rospy.Publisher('desired_position', Pose2D, queue_size=10)
 	ai = AIProcessor(pub)
 
-	# We will be subscribing to vision and game state
-	rospy.Subscriber('wc_estimation', VisionState, ai.save_pos)
-	rospy.Subscriber('game_state', GameState, ai.do_nothing)
+	# We will be subscribing to estimation and game state
+	rospy.Subscriber('estimation', VisionState, ai.save_pos)
+	rospy.Subscriber('game_state', GameState, ai.update_game_state)
+	rospy.Subscriber('des_estimation', Pose2D, ai.save_desired)
 
 	rate = rospy.Rate(100) # 100 Hz
 	increment = 0
 	testing = 1
 	while not rospy.is_shutdown():
-		# if(increment == 100)
-		# 	self.ai.strategize()
-		# 	increment = 0
-		# if(testing = 1)
-		# 	self.ai.spin_90(self.ai.pos_r[2])
-		# 	testing = 0
-		# self.ai.update_sm(self.ai.pos_r[2])
-		# increment += 1
+		ai.play_soccer()
 		rate.sleep()
 
 

@@ -35,6 +35,21 @@ class RobotEstimator(filters.LowPassFilter):
 		super(RobotEstimator,self).__init__(T_ctrl=T_ctrl, alpha=alpha)
 
 
+	# def pix_to_world(self, pix_coord, offset, conversion, reverse):
+	# 	# set up the array, get theta in there
+	# 	world = pix_coord
+	# 	# convert the pixel x and y to world coordinates
+	# 	world[:-1] = (pix_coord[:-1]-offset)*conversion
+	# 	# convert the angle to our coordinate system. since the vision has a
+	# 	# flipped y-axis, we need to subtract our angle from 360. then we need
+	# 	# to orient 0 degrees based on home or away
+	# 	theta = 360. - world[-1]
+	# 	if reverse:
+	# 		theta -= 180 + (360 if theta < 180 else 0)
+	# 	world[-1]  = theta
+	# 	return world
+
+
 
 class BallEstimator(filters.LowPassFilter):
 	'''A subclass of LowPassFilter used for estimating the position of the
@@ -48,6 +63,12 @@ class BallEstimator(filters.LowPassFilter):
 		super(BallEstimator,self).__init__(T_ctrl=T_ctrl, alpha=alpha)
 
 
+	# def pix_to_world(self, pix_coord, offset, conversion, reverse):
+	# 	# convert the pixel x and y to world coordinates
+	# 	world = (pix_coord-offset)*conversion
+	# 	return world
+
+
 
 class EstimateManager(object):
 
@@ -58,10 +79,12 @@ class EstimateManager(object):
 	field_w = 126*0.0254     # field width in meters
 	field_h = 88*0.0254      # field height in meters
 
-	def __init__(self, publisher):
+	def __init__(self, publisher, team_side='home'):
 
 		f = '/home/robot/catkin_ws/src/whitechocolate/nodes/estimation/calibration/cal.json'
 		self.params = json.load(open(f, 'r'))
+
+		self.team_side = team_side
 
 		self._set_coordinate_system()
 
@@ -83,12 +106,18 @@ class EstimateManager(object):
 
 
 	def _set_coordinate_system(self):
+		'''Define the mapping from image coordinates to world coordinates
+		'''
 		center_pix = self.params['center']
 		self.pix_per_meter = int(
 			(center_pix[0]/(self.field_w/2) + center_pix[1]/(self.field_h/2))/2
 		)
 		self.pix_offset = np.array(center_pix)
-		self.conversion = np.array([1./self.pix_per_meter,1./self.pix_per_meter])
+		# Switch positive and negative x, depending on team_side
+		xd = 1.0 if self.team_side == 'home' else -1.0
+		# Note that we make the y axis negative, to account for the the fact that
+		# the image coordinates have y increasing down instead of up
+		self.conversion = np.array([xd/self.pix_per_meter, -1./self.pix_per_meter])
 
 
 	def savePositions(self, vision_msg):
@@ -98,11 +127,18 @@ class EstimateManager(object):
 		# Our coordinate system is relative to the top left
 		# corner of the field currently on the image produced by vision
 		# Real world - this is the corner closest to our station/SE corner
+		reverse = self.team_side == 'away'
+		p = [self.pix_offset, self.conversion, reverse]
 		self.world_ally1 = self.pix_to_world(self.pose2array(vision_msg.ally1))
 		self.world_ally2 = self.pix_to_world(self.pose2array(vision_msg.ally2))
 		self.world_opp1  = self.pix_to_world(self.pose2array(vision_msg.opp1))
 		self.world_opp2  = self.pix_to_world(self.pose2array(vision_msg.opp2))
 		self.world_ball  = self.pix_to_world(self.pose2array(vision_msg.ball))
+		# self.world_ally1 = self.ally1_est.pix_to_world(self.pose2array(vision_msg.ally1), *p)
+		# self.world_ally2 = self.ally2_est.pix_to_world(self.pose2array(vision_msg.ally2), *p)
+		# self.world_opp1  = self.opp1_est.pix_to_world(self.pose2array(vision_msg.opp1), *p)
+		# self.world_opp2  = self.opp2_est.pix_to_world(self.pose2array(vision_msg.opp2), *p)
+		# self.world_ball  = self.ball_est.pix_to_world(self.pose2array(vision_msg.ball), *p)
 		# keep track of when the message was received
 		self.timestamp = time.time()
 
@@ -138,6 +174,7 @@ class EstimateManager(object):
 
 	def desired_estimate(self, desired_pos):
 		world_pos = self.convertToWorld(desired_pos)
+		world_pos.theta = 0
 		self.des_pub.publish(world_pos)
 
 
@@ -160,21 +197,37 @@ class EstimateManager(object):
 		world = pix_coord
 		# convert the pixel x and y to world coordinates
 		world[:-1] = (pix_coord[:-1]-self.pix_offset)*self.conversion
+		# convert the angle to our coordinate system. since the vision has a
+		# flipped y-axis, we need to subtract our angle from 360. then we need
+		# to orient 0 degrees based on home or away
+		if self.team_side == 'home':
+			theta = 360. - world[-1]
+		if self.team_side == 'away':
+			theta = world[-1]
+			theta =  theta - 180 + (360 if theta < 180 else 0)
+		world[-1]  = theta
 		return world
 
 	
 
 def main():
+	# Create node
 	rospy.init_node('estimation_node')
-	pub = rospy.Publisher('wc_estimation', VisionState, queue_size=10)
-	des_pub = rospy.Publisher('wc_des_estimation', Pose2D, queue_size=10)
-	est = EstimateManager(pub)
+	# Get necesarry parameters
+	param_name = rospy.search_param('team_side')
+	team_side = rospy.get_param(param_name)
+	# Set up publishers
+	pub = rospy.Publisher('estimation', VisionState, queue_size=10)
+	des_pub = rospy.Publisher('des_estimation', Pose2D, queue_size=10)
+	# Set up the manager
+	est = EstimateManager(pub, team_side=team_side)
 	est.des_pub = des_pub
+
 
 	# We will be subscribing to vision and game state
 	# Need to add game state subscription
-	rospy.Subscriber('wc_vision_state', VisionState, est.savePositions)
-	rospy.Subscriber('wc_click_desired_position',Pose2D,est.desired_estimate)
+	rospy.Subscriber('vision_state', VisionState, est.savePositions)
+	rospy.Subscriber('click_desired_position',Pose2D,est.desired_estimate)
 
 	rate = rospy.Rate(est.ctrl_period)
 	while not rospy.is_shutdown():

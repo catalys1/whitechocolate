@@ -49,15 +49,16 @@ class ControlHandler(object):
 
 def main():
     rospy.init_node('controller', anonymous=False)
-    pub = rospy.Publisher('wc_vel_cmds', Twist, queue_size=10)
+    pub = rospy.Publisher('vel_cmds', Twist, queue_size=10)
     Controller.init()
     control = ControlHandler()
 
     # Subscribe to my current state (from the vision node)
     # and my desired state (from the ai node)
-    rospy.Subscriber('wc_estimation', VisionState, control.setPositions)
-    rospy.Subscriber('wc_des_estimation', Pose2D, control.setDesired)
-    # rospy.Subscriber('/wc_desired_position', Pose2D, _handle_desired_position)
+    rospy.Subscriber('estimation', VisionState, control.setPositions)
+    rospy.Subscriber('des_estimation', Pose2D, control.setDesired)
+    # Add this in when the AI is actually publishing it
+    # rospy.Subscriber('/desired_position', Pose2D, _handle_desired_position)
 
     # Publish velocity commands from PID controller
 
@@ -69,7 +70,7 @@ def main():
             control.ctrl_period,
             control.ally1.x,
             control.ally1.y,
-            control.ally1.theta)
+            control.ally1.theta/57.3)
 
         # Publish Velocity Commands
         msg = Twist()

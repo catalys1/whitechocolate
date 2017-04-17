@@ -2,6 +2,7 @@ import struct
 import time
 import serial
 import matplotlib.pyplot as plt
+import numpy as np
 
 ser = serial.Serial('/dev/ttyAMA0', 115200, timeout=None) #linux
 #ser = serial.Serial('COM11', 115200, timeout=None) #windows
@@ -48,11 +49,34 @@ speedM2 = 2
 speedM3 = 2
 
 # Set the PIDQ values for all motors
-setPID(0, 1, 1, 83000)
+#setPID(0, 1, 0, 83000)
 #setPID(0, 1, 0, 800)
 
 # Set tick period (triggers PID control) and velocity filter corner frequency
 setT(20, 50)
+
+speeds = []
+powers = []
+for i in xrange(0,3):
+	p = 80+i*10
+	powers.append(p)
+	setPower(p,p,p)
+	time.sleep(1)
+	s = getSpeed()
+	disengage()
+	print s
+	speeds.append(s)
+speeds = np.array(speeds)
+
+A = np.vstack([powers, np.ones(len(powers))]).T
+m1, c1 = np.linalg.lstsq(A, speeds[:,0])[0]
+m2, c2 = np.linalg.lstsq(A, speeds[:,1])[0]
+m3, c3 = np.linalg.lstsq(A, speeds[:,2])[0]
+print m1, m2, m3
+
+setPID(1, 1, 0, m1*pulsePerRotation)
+setPID(2, 1, 0, m2*pulsePerRotation)
+setPID(3, 1, 0, m3*pulsePerRotation)
 
 #initialize arrays
 times = []

@@ -3,6 +3,7 @@ import rospy
 import struct
 import time
 import serial
+import signal
 
 # ser = serial.Serial('COM11', 115200, timeout=None) #windows
 # ser = serial.Serial('/dev/ttyUSB0', 115200, timeout=None) #linux
@@ -11,34 +12,40 @@ ser = serial.Serial('/dev/ttyAMA0', 115200, timeout=None) #linux, (read note on 
 from geometry_msgs.msg import Twist, Pose2D, Vector3
 # from std_srvs.srv import Trigger, TriggerResponse
 
-from slash_dash_bang_hash.msg import State, MotorSpeeds
-
 import numpy as np
 from math import cos, sin, pi
 
-# Kinematic constants
-#TODO: we may need to change these since these are based on our actual robot
-RHO = 0.02875 # Wheel radius [m]
-SX1 = -0.866 # Wheel spin vectors - body frame (unit vectors)
-SY1 = 0.5
-SX2 = -0.866
-SY2 = -0.5
-SX3 = 1.0
-SY3 = 0
-RY1 = 0.03889 # Wheel position vectors - body frame (in meters)
-RX1 = 0.0777875
-RY2 = 0.03889
-RX2 = -0.0777875
-RX3 = 0.0
-RY3 = -0.03889
+# distances in meters
+a = 0.087988
+b = 0.043994
+c = 0.0762
+# radius of the wheel in meters (1 inch)
+RHO = 0.0254
+# wheel direction unit vectors
+x = 0.5
+y = 0.866
+SX1 = -x
+SY1 =  y
+SX2 = -x
+SY2 = -y
+SX3 =  1
+SY3 =  0
+# wheel position vectors
+RX1 =  c
+RY1 =  b
+RX2 = -c
+RY2 =  b
+RX3 =  0
+RY3 = -a
+
 
 theta_ = 0
 vel_cmd_ = Vector3()
 wheel_speeds_ = np.zeros(shape=(3))
 
 M_ = (1/RHO)*np.array([[SX1, SY1, (SY1*RX1 - SX1*RY1)],
-                      [SX2, SY2, (SY2*RX2 - SX2*RY2)],
-                      [SX3, SY3, (SY3*RX3 - SX3*RY3)]])
+                       [SX2, SY2, (SY2*RX2 - SX2*RY2)],
+                       [SX3, SY3, (SY3*RX3 - SX3*RY3)]])
 
 # ============== MOTOR FUNCTIONS ====================
 def writeFloat(f):
@@ -77,26 +84,31 @@ def disengage():
 
 # ============== ROS NODE FUNCTIONS ====================
 
+
+def _pose2array(msg):
+    return np.array([msg.linear.x, msg.linear.y, msg.angular.z])
+
 def _handle_velocity_command(msg):
     global vel_cmd_
     vel_cmd_.x = msg.linear.x
     vel_cmd_.y = msg.linear.y
     vel_cmd_.z = msg.angular.z
-    print(msg)
-    computeMotorSpeeds()
+    vel_vec = _pose2array(msg)
+    # print(msg)
+    computeMotorSpeeds(vel_vec)
 
-def computeMotorSpeeds():
+def computeMotorSpeeds(vel_vec):
     global wheel_speeds_
-    ct = cos(theta_)
-    st = sin(theta_)
+    theta = vel_vec[2]
+    ct = cos(theta)
+    st = sin(theta)
 
     R = np.array([[ ct, st, 0],
                   [-st, ct, 0],
                   [  0,  0, 1]])
 
-    velocities = np.array([vel_cmd_.x, vel_cmd_.y, vel_cmd_.z])
-    print(velocities)
-    wheel_speeds_ = np.dot(M_, R).dot(velocities)
+    # print(velocities)
+    wheel_speeds_ = np.dot(M_, R).dot(vel_vec)
 
     sendVelocityCommands()
 
@@ -105,31 +117,39 @@ def sendVelocityCommands():
     speedM2 = wheel_speeds_[1] # rot/s
     speedM3 = wheel_speeds_[2] # rot/s
 
-    print('Wheel speeds: {}',format(wheel_speeds_))
+    # print('Wheel speeds: {}',format(wheel_speeds_))
 
-    # totalTime = 3   #seconds
-    # sampleRate = 50 #samples per second
     pulsePerRotation = 4955 #Old motors
-    # pulsePerRotation = 116.2 #New motors
-
-    # Set the PIDQ values for all motors
-    setPID(0, 1, 1, 83000)
-
-    # Set tick period (triggers PID control) and velocity filter corner frequency
-    setT(20, 50)
 
     setSpeed(speedM1*pulsePerRotation, speedM2*pulsePerRotation, speedM3*pulsePerRotation)
 
 
+def stopMotors(signal,frame):
+    '''Tell the motors to shut down
+    '''
+    setSpeed(0,0,0)
+    disengage()
+    exit(0)
 
+
+def setup():
+    # Set tick period (triggers PID control) and velocity filter corner frequency
+    setT(20, 50)
+    # Set the PIDQ values for all motors
+    setPID(1, 1.6, 0.4, 63000)
+    setPID(2, 1.75, 0.5, 50000)
+    setPID(3, 1.75, 0.5, 50000)
+
+
+motor_speed_pub_ = None
 
 def main():
+    signal.signal(signal.SIGINT, stopMotors)
     rospy.init_node('MotionControl', anonymous=False)
+    setup()
 
-    # Sub/Pub
-    rospy.Subscriber('wc_vel_cmds', Twist, _handle_velocity_command)
-    motor_speed_pub_ = rospy.Publisher('wc_motor_speeds', MotorSpeeds, queue_size=10)
-
+    # Subscribe to velocity commands
+    rospy.Subscriber('/whitechocolate/vel_cmds', Twist, _handle_velocity_command)
 
     # spin() simply keeps python from exiting until this node is stopped
     rospy.spin()

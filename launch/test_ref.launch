@@ -1,22 +1,35 @@
 <?xml version="1.0"?>
+
+<!--
+*******************************************************************************
+This launch file is for testing hardware with a referee inside our own
+namespace
+*******************************************************************************
+-->
+
 <launch>
+
+	<!-- Team side is passed in via the commandline -->
+	<arg name="team_side" default="home" />
 
 	<group ns="whitechocolate">
 
 		<!-- launch-prefix="xterm -e"  for a debug window -->
 
+		<!-- team_side parameter -->
+		<param name="team_side" type="string" value="$(arg team_side)" />
+
+		<!-- launch the nodes -->
 		<node name="vision" pkg="whitechocolate" type="vision_node.py" output="screen">
 	    </node>
-
 	    <node name="estimator" pkg="whitechocolate" type="estimation_node.py" output="screen">
 	    </node>
-
 	    <node name="controller" pkg="whitechocolate" type="escontroller_node.py" output="screen">
 	    </node>
-
 	    <node name="ai" pkg="whitechocolate" type="skills_ai.py" output="screen">
 	    </node>
 
+	    <!-- also launch the referee -->
 	    <include file="$(find soccerref)/launch/referee.launch">
             <arg name="half_duration_secs" value="120" />
             <arg name="use_timer" value="false" />
