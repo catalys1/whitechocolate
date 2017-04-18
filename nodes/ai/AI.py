@@ -18,6 +18,7 @@ class AI(object):
 
         self.start_pos_offense = np.array([-0.40, 0, 0])
         self.start_pos_defense = np.array([-1.25, 0, 0])
+        self.penalty_pos       = np.array([-1.25, 0.6, 0])
 
 
     def playOffense(self, position, ball):
@@ -33,11 +34,15 @@ class AI(object):
 
 
     def reset_offense(self):
-        return self.start_pose_offense
+        return self.start_pos_offense
 
 
-    def reset_offense(self):
-        return self.start_pose_defense
+    def reset_defense(self):
+        return self.start_pos_defense
+
+
+    def set_penalty(self):
+        return self.penalty_pos
         
 
     # def strategize(self, me, ally, opp1, opp2, ball, game_state):

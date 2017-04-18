@@ -14,7 +14,7 @@ flag = True
 
 class AIProcessor(object):
 
-	def __init__(self,pub):
+	def __init__(self,pub,team_side='home'):
 		self.ally1 = np.zeros(3, np.float64)
 		self.ally2 = np.zeros(3, np.float64)
 		self.pos1  = np.zeros(3, np.float64)
@@ -22,7 +22,8 @@ class AIProcessor(object):
 		self.ball  = np.zeros(3, np.float64)
 
 		self.pub = pub
-		self.AI = AI.AI('home',1)
+		self.team_side = team_side
+		self.AI = AI.AI(team_side,1)
 
 		self.game_state = GameState()
 
@@ -35,11 +36,17 @@ class AIProcessor(object):
 		command = np.array([0.0, 0.0, 0.0])
 		# reset field has priority
 		if self.game_state.reset_field:
-			# either set up for a penelty of go to start position
+			# either set up for a penalty of go to start position
 			if self.game_state.home_penalty:
-				pass
+				if self.team_side = 'home':
+					command = self.AI.reset_offense()
+				else:
+					command = self.AI.set_penalty()
 			elif self.game_state.away_penalty:
-				pass
+				if self.team_side = 'away':
+					command = self.AI.reset_offense()
+				else:
+					command = self.AI.set_penalty()
 			else:
 				command = self.AI.reset_offense()
 		elif self.game_state.play:
@@ -81,8 +88,13 @@ class AIProcessor(object):
 
 def main():
 	rospy.init_node('whitechocolate_skills')
+
+	# Get necesarry parameters
+	param_name = rospy.search_param('team_side')
+	team_side = rospy.get_param(param_name)
+
 	pub = rospy.Publisher('desired_position', Pose2D, queue_size=10)
-	ai = AIProcessor(pub)
+	ai = AIProcessor(pub, team_side=team_side)
 
 	# We will be subscribing to estimation and game state
 	rospy.Subscriber('estimation', VisionState, ai.save_pos)
