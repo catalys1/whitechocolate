@@ -93,7 +93,7 @@ class VisionProcessorRobot(VisionProcessor):
 			# 		theta += 2*np.pi
 			x = (c0[0] + c1[0]) / 2
 			y = (c0[1] + c1[1]) / 2
-			self.position = (x,y,theta*57.3) 
+			self.position = (x,y,np.rad2deg(theta)) 
 		except:
 			pass
 
@@ -141,8 +141,12 @@ class VisionProcessorBall(VisionProcessor):
 		self.toggle_view = True
 
 		if 'thresh' not in kwargs:
-			self.lowb = np.array([120,25,150])
-			self.upb  = np.array([150,60,240])
+			self.lowb = np.array([115,2, 220])
+			self.upb  = np.array([165,50,240])
+		else:
+			t = kwargs['thresh']
+			self.lowb = np.array(t[0])
+			self.upb = np.array(t[1])
 
 		self.thresh = None
 
@@ -162,17 +166,21 @@ class VisionProcessorBall(VisionProcessor):
 			cs = []
 			for c in cnts:
 				M = cv.moments(c)
-				cX = int(M['m10']/M['m00'])
-				cY = int(M['m01']/M['m00'])
-				area = int(M['m00'])
-				if area > 3:
-					cs.append([cX,cY,area])
-			# if cnts == 1:	
+				try:
+					cX = int(M['m10']/M['m00'])
+					cY = int(M['m01']/M['m00'])
+					area = int(M['m00'])
+					if area > 3 and area < 30:
+						cs.append([cX,cY,area])
+				except:
+					pass
+
 			x = cs[0][0]
 			y = cs[0][1]
 			# print cs
 			self.position = (x,y) 
-		except:
+		except Exception, e:
+			# print e
 			pass
 
 		return self.position
@@ -311,7 +319,7 @@ class VisionManager(object):
 		des_msg = Pose2D(
 			x=self.desired_x,
 			y=self.desired_y,
-			theta=0
+			theta=180.
 		)
 		self.pub.publish(vis_msg)
 		self.des_pub.publish(des_msg)

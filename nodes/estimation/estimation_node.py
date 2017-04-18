@@ -174,7 +174,7 @@ class EstimateManager(object):
 
 	def desired_estimate(self, desired_pos):
 		world_pos = self.convertToWorld(desired_pos)
-		world_pos.theta = 0
+		world_pos.theta = 180.
 		self.des_pub.publish(world_pos)
 
 
@@ -227,7 +227,7 @@ def main():
 	# We will be subscribing to vision and game state
 	# Need to add game state subscription
 	rospy.Subscriber('vision_state', VisionState, est.savePositions)
-	rospy.Subscriber('click_desired_position',Pose2D,est.desired_estimate)
+	rospy.Subscriber('click_desired_position', Pose2D, est.desired_estimate)
 
 	rate = rospy.Rate(est.ctrl_period)
 	while not rospy.is_shutdown():

@@ -20,15 +20,15 @@ velocities = (0, 0, 0)
 def init(gains=None):
     global PID_x, PID_y, PID_theta
 
-    xP = 5
+    xP = 1.75
     xI = 0
     xD = 0
 
-    yP = 5
+    yP = 1.75#1.75
     yI = 0
     yD = 0
 
-    thetaP = 3
+    thetaP = 0#0.001
     thetaI = 0
     thetaD = 0
 
@@ -98,7 +98,7 @@ def update(time_since_last_update, xhat, yhat, thetahat):
     if not _close(y_c, yhat):
         vy = PID_y.update(y_c, yhat, Ts)
 
-    if update_theta and not _close(theta_c, thetahat, tolerance=5): # degrees
+    if update_theta and not _close(theta_c, thetahat, tolerance=30): # degrees
         # Since the max distance you should ever go is 180 degrees,
         # test to see so that the commanded value is proportional to
         # the error between commanded and actual.

@@ -51,6 +51,8 @@ find_package(catkin REQUIRED COMPONENTS
 add_message_files(
   FILES
   VisionState.msg
+  MotorCommand.msg
+  WheelSpeeds.msg
 )
 
 ## Generate services in the 'srv' folder

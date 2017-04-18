@@ -43,7 +43,8 @@ class AIProcessor(object):
 			else:
 				command = self.AI.reset_offense()
 		elif self.game_state.play:
-			command = self.click_desired
+			# command = self.click_desired
+			command = self.AI.playOffense(self.ally1, self.ball)
 		else:
 			command = self.AI.stop(self.ally1)
 

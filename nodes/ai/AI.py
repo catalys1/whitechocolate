@@ -21,7 +21,7 @@ class AI(object):
 
 
     def playOffense(self, position, ball):
-        pass
+        return ball
 
 
     def playDefense(self, position, ball):

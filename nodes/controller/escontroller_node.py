@@ -57,7 +57,7 @@ def main():
     # Subscribe to my current state (from the vision node)
     # and my desired state (from the ai node)
     rospy.Subscriber('estimation', VisionState, control.setPositions)
-    rospy.Subscriber('des_estimation', Pose2D, control.setDesired)
+    rospy.Subscriber('desired_position', Pose2D, control.setDesired)
     # Add this in when the AI is actually publishing it
     # rospy.Subscriber('/desired_position', Pose2D, _handle_desired_position)
 
@@ -71,14 +71,15 @@ def main():
             control.ctrl_period,
             control.ally1.x,
             control.ally1.y,
-            control.ally1.theta/57.3)
+            control.ally1.theta)
 
         # Publish Velocity Commands
         msg = MotorCommand()
         msg.command.linear.x = vx
         msg.command.linear.y = vy
-        msg.command.angular.z = w
-        msg.theta = control.ally1.theta/57.3
+        # msg.command.angular.z = w
+        msg.command.angular.z = 0.
+        msg.theta = control.ally1.theta
         pub.publish(msg)
        
         # Wait however long it takes to make this tick at proper control period

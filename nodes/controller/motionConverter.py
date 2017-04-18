@@ -19,6 +19,7 @@ vel_cmd_ = Vector3()
 motor_speed_pub_ = None
 theta_ = 0
 wheel_speeds_ = np.zeros(shape=(3))
+vel_vec_ = np.zeros(shape=(3,1))
 
 M_ = []
 
@@ -71,13 +72,14 @@ def _pose2array(msg):
 def _handle_velocity_command(msg):
 	global vel_vec_, theta_
 	vel_vec_ = _pose2array(msg.command)
-	theta_ = msg.theta
+	theta_ = np.radians(msg.theta)
 	computeMotorSpeeds()
 
 def computeMotorSpeeds():
-	global wheel_speeds_
-	ct = np.cos(theta_)
-	st = np.sin(theta_)
+	global wheel_speeds_, vel_vec_
+	th = theta_ + np.pi/2.
+	ct = np.cos(th)
+	st = np.sin(th)
 
 	R = np.matrix([
 		[ ct, st, 0],
@@ -86,7 +88,7 @@ def computeMotorSpeeds():
 	])
 
 	# print(velocities)
-	wheel_speeds_ = M_ * R * vel_vec
+	wheel_speeds_ = M_ * R * vel_vec_
 
 	sendVelocityCommands()
 
@@ -94,16 +96,18 @@ def sendVelocityCommands():
 	global motor_speed_pub_
 	pulsePerRotation = 4955 #Old motors
 
-	speedM1 = wheel_speeds_.item(0) * pulsePerRotation
-	speedM2 = wheel_speeds_.item(1) * pulsePerRotation
-	speedM3 = wheel_speeds_.item(2) * pulsePerRotation
+	ppr = pulsePerRotation / (2*np.pi)
+
+	speedM1 = wheel_speeds_.item(0) * ppr
+	speedM2 = wheel_speeds_.item(1) * ppr
+	speedM3 = wheel_speeds_.item(2) * ppr
 
 	# print('Wheel speeds: {}'.format(wheel_speeds_))
 	setSpeed(speedM1, speedM2, speedM3)
 	msg = WheelSpeeds()
-	msg.wheel1 = speedM1
-	msg.wheel2 = speedM2
-	msg.wheel3 = speedM3
+	msg.wheel1 = speedM1 / pulsePerRotation
+	msg.wheel2 = speedM2 / pulsePerRotation
+	msg.wheel3 = speedM3 / pulsePerRotation
 	motor_speed_pub_.publish(msg)
 
 
@@ -149,9 +153,10 @@ def setup():
 	# Set tick period (triggers PID control) and velocity filter corner frequency
 	setT(20, 50)
 	# Set the PIDQ values for all motors
-	setPID(1, 1.60, 0.4, 63000)
-	setPID(2, 1.75, 0.5, 50000)
-	setPID(3, 1.75, 0.5, 50000)
+	setPID(1, 2.5, 1, 70000)
+	setPID(2, 2.5, 1, 70000)
+	setPID(3, 2.5, 1, 100000)
+
 
 
 def main():
